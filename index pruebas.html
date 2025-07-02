@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />  <title>Cartelera Cerros de Suba</title>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+ <link rel="stylesheet" href="Style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head> 
+</head>
+<body>
+
+  
+  <!-- LOGIN MEJORADO -->
+  <div id="login" class="login-container">
+  <div class="login-box">
+    <h2>Iniciar Sesión</h2>
+    <input type="text" id="usuario" placeholder="👤 Usuario" />
+
+    <div class="password-container">
+      <input type="password" id="clave" placeholder="🔒 Contraseña" />
+      <span class="toggle-password" onclick="togglePassword()">
+        🙈
+      </span>
+    </div>
+
+    <button onclick="iniciarSesion()">Ingresar</button>
+    <p id="mensaje-error" class="error-msg"></p>
+  </div>
+</div>
+
+<!-- RESTO DEL CÓDIGO -->
+ <!-- Lucide para íconos -->
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<div id="app" style="display: none">
+  <!-- Barra superior -->
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <i data-lucide="map-pin" class="icon"></i>
+      <span class="titulo">Cartelera Cerros de Suba</span>
+      <span id="rol-texto" class="rol-texto"></span>
+    </div>
+    <button class="logout-btn" onclick="mostrarConfirmacionCerrarSesion()">
+        <i data-lucide="log-out" class="icon"></i><span>&nbsp;Cerrar sesión</span>
+    </button>
+  </header>
+
+  <!-- Contenido principal -->
+  <div class="main">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="user-info">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+          alt="Usuario"
+          class="avatar"
+        />
+        <p class="user-label">Bienvenido</p>
+      </div>
+      <nav id="menu-opciones" class="menu-opciones"></nav>
+    </aside>
+
+    <!-- Contenido dinámico -->
+    <section class="container" id="contenido"></section>
+  </div>
+</div>
+
+<!-- 🧩 Modal de confirmación -->
+<!-- Modal de Confirmación -->
+<div id="modal-confirmacion" class="modal-overlay" style="display: none;">
+  <div class="modal-box">
+    <h3>¿Estás seguro de que deseas cerrar sesión?</h3>
+    <div class="modal-buttons">
+      <button class="btn-si" onclick="cerrarSesion()">Sí, cerrar sesión</button>
+      <button class="btn-no" onclick="cerrarModal()">No, volver</button>
+    </div>
+  </div>
+</div>
+    
+<script src="js/app.js"></script>
+
+  <script>
+    function togglePassword() {
+      const claveInput = document.getElementById("clave");
+      claveInput.type =
+        claveInput.type === "password" ? "text" : "password";
+    }
+    let rolActual = "";
+    let modoEdicion = false;
+    let registrosLozano = [];
+    let registrosHunza = [];
+    let registrossalon = [];
+    let asignaciones = [];
+    let notificaciones = [];
+    let asignacionPendiente = null;
+    let idAsignacionAEliminar = null;
+    let servicios = [
+      ["Martes", "9:00 a.m.", "Familia Lozano", "De casa en casa", ""],
+      ["Miércoles", "9:00 a.m.", "Familia Lozano", "De casa en casa", ""],
+      ["Jueves", "9:00 a.m.", "Salón del Reino", "De casa en casa", "Todos"],
+      ["Jueves", "6:00 p.m.", "Salón del Reino", "Por cartas / en las calles", ""],
+      ["Viernes", "9:00 a.m.", "Familia Camacho", "De casa en casa", ""],
+      ["Sábado", "9:00 a.m.", "Salón del Reino", "De casa en casa", "Aguadita y Manuelita"],
+      ["Domingo", "9:30 a.m.", "Familia Lozano", "De casa en casa", "Hunzá y Naranjos"],
+      ["Domingo", "9:30 a.m.", "Familia Fajardo", "De casa en casa", "Jordán y Salón"],
+      ["Festivos", "9:30 a.m.", "Salón del Reino", "De casa en casa", "Todos"]
+    ];
+
+        const datosIniciales = localStorage.getItem("servicios");
+if (datosIniciales) {
+  servicios = JSON.parse(datosIniciales);
+}
+
+
+    if (localStorage.getItem("asignaciones")) {
+  asignaciones = JSON.parse(localStorage.getItem("asignaciones"));
+}
+
+if (localStorage.getItem("notificaciones")) {
+  notificaciones = JSON.parse(localStorage.getItem("notificaciones"));
+}
+
+function iniciarSesion() { 
+  const usuario = document.getElementById("usuario").value.trim();
+  const clave = document.getElementById("clave").value.trim();
+
+  if ((usuario === "admin" && clave === "admin") || (usuario === "usuario" && clave === "usuario")) {
+    rolActual = usuario === "admin" ? "Administrador" : "Usuario";
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("rol-texto").textContent = ` - ${rolActual}`;
+
+    const menu = document.getElementById("menu-opciones");
+    menu.innerHTML = "";
+
+    // === ADMINISTRADOR ===
+    if (rolActual === "Administrador") {
+      const servicio = document.createElement("div");
+      servicio.className = "menu-item";
+      servicio.textContent = "🛣️ Salidas al Servicio";
+      servicio.onclick = mostrarServicio;
+      menu.appendChild(servicio);
+    }
+
+    // === USUARIO ===
+    if (rolActual === "Usuario") {
+      const submenuTerritorio = document.createElement("div");
+      submenuTerritorio.className = "submenu hidden";
+
+      const Territorio = document.createElement("div");
+      Territorio.className = "menu-item";
+      Territorio.innerHTML = "🗺️ Territorios";
+      Territorio.onclick = () => toggleSubmenu(submenuTerritorio);
+
+      const servicioTerritorio = document.createElement("div");
+      servicioTerritorio.className = "submenu-item";
+      servicioTerritorio.textContent = "🛣️ Salidas al Servicio";
+      servicioTerritorio.onclick = mostrarServicio;
+
+      const lozano = document.createElement("div");
+      lozano.className = "submenu-item";
+      lozano.textContent = "🏡 Familia Lozano";
+      lozano.onclick = mostrarTarjetasLozano;
+
+      const hunza = document.createElement("div");
+      hunza.className = "submenu-item";
+      hunza.textContent = "🌄 Hunza";
+      hunza.onclick = mostrarTarjetasHunza;
+
+      const salon = document.createElement("div");
+      salon.className = "submenu-item";
+      salon.textContent = "🏛️ Salón del Reino";
+      salon.onclick = mostrarTarjetasSalon;
+
+      const asignacionesUsuario = document.createElement("div");
+      asignacionesUsuario.className = "submenu-item";
+      asignacionesUsuario.textContent = "📌 Asignaciones Asignadas";
+      asignacionesUsuario.onclick = mostrarAsignacionesUsuario;
+
+      submenuTerritorio.appendChild(servicioTerritorio);
+      submenuTerritorio.appendChild(lozano);
+      submenuTerritorio.appendChild(hunza);
+      submenuTerritorio.appendChild(salon);
+      submenuTerritorio.appendChild(asignacionesUsuario);
+
+      menu.appendChild(Territorio);
+      menu.appendChild(submenuTerritorio);
+
+      // === NUEVO: Submenú Reuniones ===
+      const submenuReuniones = document.createElement("div");
+      submenuReuniones.className = "submenu hidden";
+
+      const reuniones = document.createElement("div");
+      reuniones.className = "menu-item";
+      reuniones.innerHTML = "📅 Reuniones";
+      reuniones.onclick = () => toggleSubmenu(submenuReuniones);
+
+      const agregarConferenciante = document.createElement("div");
+      agregarConferenciante.className = "submenu-item";
+      agregarConferenciante.textContent = "🎤 Conferenciantes";
+      agregarConferenciante.onclick = () => asignaconferenciantes(false);
+
+      const agregarvida = document.createElement("div");
+      agregarvida.className = "submenu-item";
+      agregarvida.textContent = "📖 Vida y Ministerio";
+      agregarvida.onclick = () => asignavida(false);
+      submenuReuniones.appendChild(agregarvida);
+
+      const aseo = document.createElement("div");
+      aseo.className = "submenu-item";
+      aseo.textContent = "🧹 Aseo";
+      aseo.onclick = () => mostrarAseo(false);
+      submenuTerritorio.appendChild(aseo);
+
+      submenuReuniones.appendChild(agregarConferenciante);
+      submenuReuniones.appendChild(agregarvida);
+      submenuReuniones.appendChild(aseo);
+      menu.appendChild(reuniones);
+      menu.appendChild(submenuReuniones)
+      
+    }
+
+    // === ADMINISTRADOR - Reportes y Cartelera ===
+    if (rolActual === "Administrador") {
+      const submenuReportes = document.createElement("div");
+      submenuReportes.className = "submenu hidden";
+
+      const reportes = document.createElement("div");
+      reportes.className = "menu-item";
+      reportes.innerHTML = "📊 Reportes";
+      reportes.onclick = () => toggleSubmenu(submenuReportes);
+
+      const verReporte = document.createElement("div");
+      verReporte.className = "submenu-item";
+      verReporte.textContent = "📈 Ver Reporte General";
+      verReporte.onclick = mostrarReporteGeneral;
+
+      const exportar = document.createElement("div");
+      exportar.className = "submenu-item";
+      exportar.textContent = "📁 Exportar datos";
+      exportar.onclick = exportarDatos;
+
+      const asignarAuto = document.createElement("div");
+      asignarAuto.className = "submenu-item";
+      asignarAuto.textContent = "📌 Asignación manual";
+      asignarAuto.onclick = mostrarAsignacionManual;
+
+      submenuReportes.appendChild(verReporte);
+      submenuReportes.appendChild(exportar);
+      submenuReportes.appendChild(asignarAuto);
+
+      menu.appendChild(reportes);
+      menu.appendChild(submenuReportes);
+
+      const submenuCartelera = document.createElement("div");
+      submenuCartelera.className = "submenu hidden";
+
+      const cartelera = document.createElement("div");
+      cartelera.className = "menu-item";
+      cartelera.innerHTML = "📋 Cartelera";
+      cartelera.onclick = () => toggleSubmenu(submenuCartelera);
+
+      const noticias = document.createElement("div");
+      noticias.className = "submenu-item";
+      noticias.textContent = "🗞️ Congregación";
+      noticias.onclick = mostrarnoticias;
+
+      const conferenciantesAdmin = document.createElement("div");
+      conferenciantesAdmin.className = "submenu-item";
+      conferenciantesAdmin.textContent = "🎤 Conferenciantes";
+      conferenciantesAdmin.onclick = () => asignaconferenciantes(true); // true: editable
+      submenuCartelera.appendChild(conferenciantesAdmin);
+
+      const VidaAdmin = document.createElement("div");
+      VidaAdmin.className = "submenu-item";
+      VidaAdmin.textContent = "📖 Vida y Ministerio";
+      VidaAdmin.onclick = () => asignavida(true);
+      submenuCartelera.appendChild(VidaAdmin);
+
+      const aseoAdmin = document.createElement("div");
+      aseoAdmin.className = "submenu-item";
+      aseoAdmin.textContent = "🧹 Aseo";
+      aseoAdmin.onclick = () => mostrarAseo(true); // editable para admins
+      submenuCartelera.appendChild(aseoAdmin);
+
+      const recordatorios = document.createElement("div");
+      recordatorios.className = "submenu-item";
+      recordatorios.textContent = "⏰ Recordatorios";
+      recordatorios.onclick = mostrarrecordatorios;
+
+      submenuCartelera.appendChild(noticias);
+      submenuCartelera.appendChild(recordatorios);
+
+      menu.appendChild(cartelera);
+      menu.appendChild(submenuCartelera);
+    }
+
+    // === Alternar submenús
+    function toggleSubmenu(submenu) {
+      submenu.classList.toggle("hidden");
+    }
+  } else {
+    alert("Credenciales incorrectas");
+  }
+}
+  function mostrarConfirmacionCerrarSesion() {
+  document.getElementById("modal-confirmacion").style.display = "flex";
+}
+
+    function cerrarModal() {
+  document.getElementById("modal-confirmacion").style.display = "none";
+}
+
+function cerrarSesion() {
+  // Aquí colocas la lógica de cierre de sesión
+  console.log("Sesión cerrada.");
+  // Redireccionar o limpiar datos si es necesario
+  location.reload(); // o window.location.href = "/login.html";
+}
+
+function mostrarServicio() {
+  // Cargar datos desde localStorage si existen
+  const datosGuardados = localStorage.getItem("servicios");
+  if (datosGuardados) {
+    servicios = JSON.parse(datosGuardados);
+  }
+
+  let html = `
+    <div class="servicio-container">
+      <h2 class="titulo-principal">📍 Predicación Pública</h2>
+      <h3 class="subtitulo">🗓️ Consideraciones para el Servicio del Campo 2025</h3>
+      ${rolActual === "Administrador" ? `
+        <button class="btn-editar" onclick="toggleEdicion()">
+          ${modoEdicion ? "💾 Guardar Cambios" : "✏️ Editar Horarios"}
+        </button>` : ""}
+        
+      <div class="tabla-wrapper">
+        <table class="tabla-servicios">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Hora</th>
+              <th>Lugar</th>
+              <th>Predicación</th>
+              <th>Grupos</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+  servicios.forEach((fila, i) => {
+    html += "<tr>";
+    fila.forEach((val, j) => {
+      const editable = modoEdicion && rolActual === "Administrador"
+        ? `contenteditable="true" oninput="actualizar(${i}, ${j}, this.innerText)"`
+        : "";
+      html += `<td ${editable}>${val}</td>`;
+    });
+    html += "</tr>";
+  });
+
+  html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="nota-importante">
+        <p><strong>📌 Nota:</strong> El <strong>primer domingo</strong> de cada mes saldrá toda la congregación de un lugar de encuentro previamente informado.</p>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("contenido").innerHTML = html;
+}
+
+    function mostrarTarjetasLozano() {
+      generarTarjetas("Familia Lozano", 1, 17);
+    }
+
+    function mostrarTarjetasHunza() {
+      generarTarjetas("Hunza", 18, 31);
+    }
+
+    function mostrarTarjetasSalon() {
+      generarTarjetas("Salón del Reino", 32, 62);
+    }
+
+    function generarTarjetas(familia, inicio, fin) {
+      let tarjetasHTML = '';
+      for (let i = inicio; i <= fin; i++) {
+        const rutaImagen = `${familia}/Tarjeta N°${i}.jpg`;
+        tarjetasHTML += generarTarjetaHTML(familia, i, rutaImagen);
+      }
+      document.getElementById("contenido").innerHTML = tarjetasHTML;
+    }
+
+function generarTarjetaHTML(familia, id, rutaImagen) {
+  const secciones = ["A", "B", "C", "D", "E", "F", "G"];
+  return `
+    <div class="form-box tarjeta-asignacion">
+      <h3>Registro - ${familia}</h3>
+      <p class="subtitulo">🆔 Tarjeta ${id} - Registro de predicación</p>
+
+      <label for="fecha${familia}${id}">🗓️ Fecha</label>
+      <input type="date" id="fecha${familia}${id}" name="fecha${familia}${id}" />
+
+      <label>🗺️ Mapa del territorio</label>
+      <div class="imagen-mapa">
+        <img src="${rutaImagen}" alt="Mapa del territorio ${familia} ${id}" />
+      </div>
+
+      <label>✅ Secciones trabajadas</label>
+      <div class="checkbox-group">
+        ${secciones.map(seccion => `
+          <label>
+            <input type="checkbox" name="seccion${familia}${id}" value="${seccion}" />
+            ${seccion}
+          </label>
+        `).join('')}
+      </div>
+
+      <label for="observaciones${familia}${id}">📝 Observaciones</label>
+      <textarea id="observaciones${familia}${id}" name="observaciones${familia}${id}" rows="4" placeholder="Escribe tus observaciones aquí..."></textarea>
+
+      <button class="btn-enviar" onclick="enviarFormularioTarjeta('${familia}', ${id})">✅ Enviar</button>
+    </div>
+  `;
+}
+
+function enviarFormularioTarjeta(familia, id) {
+  const fechaInput = document.getElementById(`fecha${familia}${id}`);
+  const observacionesInput = document.getElementById(`observaciones${familia}${id}`);
+
+  // Seleccionamos el contenedor actual (la tarjeta)
+  const formBox = fechaInput.closest('.form-box');
+
+  // Desde ese contenedor, buscamos los checkboxes marcados
+  const seccionesSeleccionadas = Array.from(
+    formBox.querySelectorAll('.checkbox-group input:checked')
+  ).map(cb => cb.value);
+
+  if (!fechaInput.value) {
+    return alert(`Tarjeta ${id}: Por favor selecciona una fecha.`);
+  }
+
+  if (seccionesSeleccionadas.length === 0) {
+    return alert(`Tarjeta ${id}: Por favor selecciona al menos una sección trabajada.`);
+  }
+
+  const registro = {
+    tarjeta: `Tarjeta ${id}`,
+    fecha: fechaInput.value,
+    secciones: seccionesSeleccionadas.join(", "),
+    observaciones: observacionesInput.value
+  };
+
+  switch (familia) {
+    case "Familia Lozano":
+      registrosLozano.push(registro);
+      break;
+    case "Hunza":
+      registrosHunza.push(registro);
+      break;
+    case "Salón del Reino":
+      registrossalon.push(registro);
+      break;
+  }
+
+  // Limpiar el formulario
+  fechaInput.value = "";
+  observacionesInput.value = "";
+  formBox.querySelectorAll('.checkbox-group input').forEach(cb => cb.checked = false);
+
+  // Mostrar mensaje bonito
+  const mensaje = document.createElement('div');
+  mensaje.className = 'mensaje-exito';
+  mensaje.textContent = `✅ Tarjeta ${id} enviada correctamente. ¡Gracias por tu registro!`;
+  formBox.appendChild(mensaje);
+
+  setTimeout(() => {
+    mensaje.remove();
+  }, 4000);
+
+  guardarRegistrosEnLocalStorage();
+}
+
+function guardarRegistrosEnLocalStorage() {
+  const datos = {
+    lozano: registrosLozano,
+    hunza: registrosHunza,
+    salon: registrossalon
+  };
+  localStorage.setItem("registros_predicacion", JSON.stringify(datos));
+}
+
+function cargarRegistrosDesdeLocalStorage() {
+  const datos = JSON.parse(localStorage.getItem("registros_predicacion"));
+  if (datos) {
+    registrosLozano = datos.lozano || [];
+    registrosHunza = datos.hunza || [];
+    registrossalon = datos.salon || [];
+  }
+
+  window.addEventListener("load", cargarRegistrosDesdeLocalStorage);
+}
+
+
+    function toggleEdicion() {
+      if (rolActual !== "Administrador") return;
+      modoEdicion = !modoEdicion;
+      mostrarServicio();
+    }
+
+  function actualizar(i, j, nuevoValor) {
+  servicios[i][j] = nuevoValor;
+  localStorage.setItem("servicios", JSON.stringify(servicios));
+}
+/**
+ * Combina y etiqueta los registros de cada grupo.
+ * @returns {Array<Object>} Lista combinada de registros con campo `grupo`.
+ */
+function obtenerRegistrosTotales() {
+  return [
+    ...(registrosLozano || []).map(r => ({ ...r, grupo: "Familia Lozano" })),
+    ...(registrosHunza || []).map(r => ({ ...r, grupo: "Hunza" })),
+    ...(registrossalon || []).map(r => ({ ...r, grupo: "Salón del Reino" }))
+  ];
+}
+
+/**
+ * Prepara la estructura de datos para exportación a Excel.
+ * @param {Array<Object>} registros - Registros combinados con campo `grupo`.
+ * @returns {Array<Array<string>>} Matriz de datos lista para exportar.
+ */
+function prepararDatosParaExcel(registros) {
+  const encabezados = ["Tarjeta", "Fecha", "Secciones trabajadas", "Observaciones", "Grupo"];
+
+  const filas = registros.map(registro => [
+    registro.tarjeta?.trim() || "Sin especificar",
+    registro.fecha || "Sin fecha",
+    registro.secciones || "Ninguna",
+    registro.observaciones?.trim() || "Sin observaciones",
+    registro.grupo?.trim() || "Desconocido"
+  ]);
+
+  return [encabezados, ...filas];
+}
+
+
+/**
+ * Exporta los datos en formato Excel.
+ */
+function exportarDatos() {
+  try {
+    const registrosTotales = obtenerRegistrosTotales();
+
+    if (!Array.isArray(registrosTotales) || registrosTotales.length === 0) {
+      alert("⚠️ No hay registros disponibles para exportar.");
+      return;
+    }
+
+    const datosExcel = prepararDatosParaExcel(registrosTotales);
+    const hoja = XLSX.utils.aoa_to_sheet(datosExcel);
+    const libro = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(libro, hoja, "Registros");
+
+    const fechaActual = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+    const nombreArchivo = `registros_predicacion_${fechaActual}.xlsx`;
+
+    XLSX.writeFile(libro, nombreArchivo);
+    console.log("✅ Archivo Excel generado con éxito:", nombreArchivo);
+    alert("📁 El archivo fue exportado correctamente.");
+  } catch (error) {
+    console.error("❌ Error al exportar datos:", error);
+    alert("❌ Ocurrió un error al intentar exportar los datos. Revisa la consola para más información.");
+  }
+}
+
+
+
+
+function mostrarAsignacionManual() {
+  const html = `
+    <div class="form-card">
+      <h2 style="text-align:center; margin-bottom: 20px;">📌 Formulario de Asignación de Territorios</h2>
+
+      <form id="formAsignacion" onsubmit="event.preventDefault(); asignarTerritorioManual();">
+        <div class="form-group">
+          <label for="fechaManual">📅 Fecha:</label>
+          <input type="date" id="fechaManual" class="form-input" required />
+        </div>
+
+        <div class="form-group">
+          <label for="grupoManual">👥 Grupo:</label>
+          <select id="grupoManual" class="form-input" onchange="actualizarTarjetasPorGrupo()" required>
+            <option value="">-- Selecciona un grupo --</option>
+            <option value="Familia Lozano">Familia Lozano</option>
+            <option value="Hunza">Hunza</option>
+            <option value="Salón del Reino">Salón del Reino</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tarjetaManual">🗂️ Tarjeta:</label>
+          <select id="tarjetaManual" class="form-input" onchange="mostrarVistaPreviaTarjeta()" required>
+            <option value="">-- Selecciona una tarjeta --</option>
+          </select>
+        </div>
+
+        <label for="mensajeManual">📝 Observación:</label>
+<textarea id="mensajeManual" rows="3" placeholder="Ej: Trabaja esta tarjeta esta semana con prioridad." style="width: 100%; margin-bottom: 10px;"></textarea>
+
+        <div id="previewTarjeta" style="text-align:center; margin: 15px 0;"></div>
+
+        <button class="btn-enviar" type="submit">✅ Asignar Territorio</button>
+      </form>
+
+      <div id="asignacionResultadoManual" class="resultado-manual" style="margin-top: 20px;"></div>
+    </div>
+  `;
+
+  document.getElementById("contenido").innerHTML = html;
+}
+
+function asignarTerritorioManual() {
+  const fecha = document.getElementById("fechaManual").value;
+  const grupo = document.getElementById("grupoManual").value;
+  const tarjeta = document.getElementById("tarjetaManual").value;
+  const mensaje = document.getElementById("mensajeManual").value.trim();
+
+  if (!fecha || !grupo || !tarjeta) {
+    alert("Por favor completa todos los campos.");
+    return;
+  }
+
+  const rutaImagen = `${grupo}/Tarjeta N°${tarjeta}.jpg`;
+
+  const asignacion = {
+    fecha,
+    grupo,
+    tarjeta: `Tarjeta ${tarjeta}`,
+    imagen: rutaImagen,
+    mensaje: mensaje || "⚠️ Esta asignación debe trabajarse esta semana con diligencia. Contacta al anciano si necesitas ayuda."
+  };
+
+  asignaciones.push(asignacion);
+  localStorage.setItem("asignaciones", JSON.stringify(asignaciones));
+
+  document.getElementById("asignacionResultadoManual").innerHTML =
+    `<p style="color: green;">✅ Asignación registrada exitosamente para ${grupo} - ${asignacion.tarjeta}.</p>`;
+
+  // Limpia el campo del mensaje
+  document.getElementById("mensajeManual").value = "";
+}
+
+function mostrarAsignacionesUsuario() {
+  const grupoUsuario = obtenerGrupoUsuario();
+
+  const contenido = document.getElementById("contenido");
+
+  if (!grupoUsuario) {
+    contenido.innerHTML = `
+      <div class="mensaje-info">⚠️ No hay asignaciones disponibles para este usuario.</div>
+    `;
+    return;
+  }
+
+  const asignacionesFiltradas = asignaciones.filter(
+    (a) => a.grupo.toLowerCase() === grupoUsuario.toLowerCase()
+  );
+
+  if (asignacionesFiltradas.length === 0) {
+    contenido.innerHTML = `
+      <div class="mensaje-info">📭 No hay asignaciones recientes para <strong>${grupoUsuario}</strong>.</div>
+    `;
+    return;
+  }
+
+  let html = `<h2 class="titulo-asignaciones">📌 Asignaciones para el Territorio</h2><div class="contenedor-tarjetas">`;
+
+  asignacionesFiltradas.forEach((a, i) => {
+    html += `
+      <div class="tarjeta-asignacion" style="animation-delay: ${i * 0.1}s">
+        <h3 class="nombre-tarjeta">${a.tarjeta}</h3>
+        <p><strong>📅 Fecha:</strong> ${a.fecha}</p>
+        <p><strong>🏘️ Grupo:</strong> ${a.grupo}</p>
+        <img src="${a.imagen}" alt="${a.tarjeta}" class="imagen-asignacion" />
+        <p class="mensaje">${a.mensaje}</p>
+        <button class="eliminar-btn" onclick="eliminarAsignacion('${a.tarjeta}', '${a.fecha}')">🗑️ Eliminar</button>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  contenido.innerHTML = html;
+}
+
+
+function eliminarAsignacion(tarjeta, fecha) {
+  asignacionPendiente = { tarjeta, fecha };
+  document.getElementById("modalConfirmacion").style.display = "flex";
+}
+
+// Asignar el grupo del usuario (según el usuario genérico "usuario")
+function obtenerGrupoUsuario() {
+  // Puedes personalizar según el usuario logueado
+  return "Familia Lozano"; // o "Hunza", etc.
+}
+
+function actualizarTarjetasPorGrupo() {
+  const grupo = document.getElementById("grupoManual").value;
+  const tarjetaSelect = document.getElementById("tarjetaManual");
+
+  tarjetaSelect.innerHTML = '<option value="">-- Selecciona una tarjeta --</option>';
+
+  let inicio = 1;
+  let fin = 1;
+
+  switch (grupo) {
+    case "Familia Lozano":
+      inicio = 1;
+      fin = 17;
+      break;
+    case "Hunza":
+      inicio = 18;
+      fin = 31;
+      break;
+    case "Salón del Reino":
+      inicio = 32;
+      fin = 62;
+      break;
+  }
+
+  for (let i = inicio; i <= fin; i++) {
+    const option = document.createElement("option");
+    option.value = i;
+    option.text = `Tarjeta ${i}`;
+    tarjetaSelect.appendChild(option);
+  }
+
+  // Limpiar vista previa
+  document.getElementById("previewTarjeta").innerHTML = "";
+}
+
+function mostrarVistaPreviaTarjeta() {
+  const grupo = document.getElementById("grupoManual").value;
+  const tarjeta = document.getElementById("tarjetaManual").value;
+
+  if (!grupo || !tarjeta) {
+    document.getElementById("previewTarjeta").innerHTML = "";
+    return;
+  }
+
+  const ruta = `${grupo}/Tarjeta N°${tarjeta}.jpg`;
+  document.getElementById("previewTarjeta").innerHTML = `<img src="${ruta}" style="max-width: 100%; border: 1px solid #ccc; border-radius: 10px;" alt="Vista previa tarjeta" />`;
+}
+
+function limpiarAsignacionSiYaExiste() {
+  const resumen = document.getElementById("asignacionResultadoManual");
+  const preview = document.getElementById("previewTarjeta");
+
+  if (resumen.innerHTML.trim() !== "") {
+    resumen.innerHTML = "";
+    preview.innerHTML = "";
+    document.getElementById("tarjetaManual").value = "";
+    alert("⚠️ Has cambiado un valor importante. Vuelve a seleccionar tarjeta y asegúrate de completar nuevamente.");
+  }
+}
+
+ function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.querySelector('.toggle-password');
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      toggleIcon.classList.remove('fa-eye');
+      toggleIcon.classList.add('fa-eye-slash');
+    } else {
+      passwordInput.type = 'password';
+      toggleIcon.classList.remove('fa-eye-slash');
+      toggleIcon.classList.add('fa-eye');
+    }
+  }
+  function confirmarEliminacion() {
+  if (asignacionPendiente) {
+    asignaciones = asignaciones.filter(a => !(a.tarjeta === asignacionPendiente.tarjeta && a.fecha === asignacionPendiente.fecha));
+    mostrarAsignacionesUsuario();
+    mostrarMensajeExito();
+    asignacionPendiente = null;
+    cerrarModal();
+  }
+}
+
+function cerrarModal() {
+  document.getElementById("modalConfirmacion").style.display = "none";
+}
+
+function mostrarMensajeExito() {
+  const mensaje = document.getElementById("mensajeExito");
+  mensaje.style.opacity = 1;
+  mensaje.style.transform = "translateY(0)";
+  setTimeout(() => {
+    mensaje.style.opacity = 0;
+    mensaje.style.transform = "translateY(-20px)";
+  }, 2000);
+}
+
+function eliminarAsignacion(tarjeta, fecha) {
+  asignaciones = asignaciones.filter(a => !(a.tarjeta === tarjeta && a.fecha === fecha));
+  mostrarAsignacionesUsuario(); // Vuelve a cargar las tarjetas actualizadas
+}
+
+function mostrarModal(idAsignacion) {
+  idAsignacionAEliminar = idAsignacion;
+  document.getElementById("modalEliminacion").style.display = "flex";
+}
+
+function cerrarModal() {
+  document.getElementById("modalEliminacion").style.display = "none";
+  idAsignacionAEliminar = null;
+}
+
+function confirmarEliminacion() {
+  if (idAsignacionAEliminar !== null) {
+    eliminarAsignacion(idAsignacionAEliminar);
+    cerrarModal();
+    mostrarMensajeExito();
+  }
+}
+
+function eliminarAsignacion(id) {
+  const elemento = document.getElementById(id);
+  if (elemento) {
+    elemento.remove();
+  }
+}
+
+function mostrarMensajeExito() {
+  const mensaje = document.getElementById("mensajeExito");
+  mensaje.style.display = "block";
+  setTimeout(() => {
+    mensaje.style.display = "none";
+  }, 3000);
+}
+
+function mostrarReporteGeneral() {
+  const conteos = {
+    "Familia Lozano": registrosLozano.length,
+    "Hunza": registrosHunza.length,
+    "Salón del Reino": registrossalon.length,
+  };
+
+  const totalSecciones = [
+    ...registrosLozano,
+    ...registrosHunza,
+    ...registrossalon,
+  ].reduce((acc, r) => acc + (r.secciones?.split(",").length || 0), 0);
+
+  const html = `
+    <div class="report-container">
+      <h2 style="text-align: center;">📊 Reporte General de Predicación</h2>
+      <p style="text-align: center;">Resumen de tarjetas enviadas y secciones trabajadas</p>
+      
+      <div class="report-boxes">
+        ${Object.entries(conteos).map(([grupo, total]) => `
+          <div class="report-box">
+            <h3>${grupo}</h3>
+            <p><strong>${total}</strong> tarjetas enviadas</p>
+          </div>
+        `).join('')}
+        <div class="report-box">
+          <h3>🔢 Total Secciones</h3>
+          <p><strong>${totalSecciones}</strong> secciones trabajadas</p>
+        </div>
+      </div>
+
+      <canvas id="graficoReporte" style="max-width: 600px; margin: 0 auto;"></canvas>
+    </div>
+  `;
+
+  document.getElementById("contenido").innerHTML = html;
+
+  // Generar gráfico de barras
+  const ctx = document.getElementById("graficoReporte").getContext("2d");
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(conteos),
+      datasets: [{
+        label: 'Tarjetas enviadas',
+        data: Object.values(conteos),
+        backgroundColor: ['#4CAF50', '#2196F3', '#FF9800'],
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: 'Tarjetas Enviadas por Grupo',
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+}
+
+function mostrarnoticias() {
+  console.log("Mostrando noticias de la cartelera");
+  // Aquí va el código que muestra la sección de noticias
+}
+
+function mostrarrecordatorios() {
+  console.log("Mostrando avisos de la cartelera");
+  // Aquí va el código que muestra los avisos importantes
+}
+
+
+function asignaconferenciantes() {
+  const contenido = document.getElementById("contenido");
+  contenido.innerHTML = `<h2 class="titulo-conferencias">🗣️ Conferenciantes 2025</h2>`;
+
+  const datosPorMes = JSON.parse(localStorage.getItem("conferenciantesPorMes")) || {
+    Mayo: [
+      { fecha: "Sábado 3", orador: "Torres Torres", numero: 73, tema: "La santidad de la vida y la sangre", congregacion: "Granados" },
+      { fecha: "Sábado 10", orador: "Fredy González", numero: 75, tema: "Cómo mejorar la comunicación en la familia", congregacion: "Los Cerros" },
+      { fecha: "Sábado 17", orador: "Carlos Quintero", numero: 105, tema: "¿Ha salido el juicio contra mí?", congregacion: "Granados" },
+      { fecha: "Sábado 24", orador: "Anderson Santamaría", numero: 106, tema: "Haga amistades que dirijan sus pasos", congregacion: "Los Cerros" },
+      { fecha: "Sábado 31", orador: "—", numero: "—", tema: "Asamblea regional: ¡Adoración pura!", congregacion: "—" }
+    ],
+    Junio: [
+      { fecha: "Sábado 7", orador: "Alexander Contreras", numero: 22, tema: "Muéstrele respeto y amor a su matrimonio", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 14", orador: "Ángel Martínez", numero: 37, tema: "¿Tiene usted fe igual que Dios?", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 21", orador: "José Enrique Sánchez", numero: 55, tema: "Mantengamos nuestra confianza fuerte hasta el fin", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 28", orador: "Héctor Tuque", numero: 67, tema: "Alientemos a la perseverancia", congregacion: "Mediterráneo" }
+    ],
+    Julio: [
+      { fecha: "Sábado 5", orador: "Carlos Gaviria", numero: 74, tema: "Sean siempre hospitalarios", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 12", orador: "Ángel Remiela", numero: 83, tema: "¿Por qué confiar en la Biblia?", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 19", orador: "William Gaitán", numero: 17, tema: "¿Está la verdad transformando su vida?", congregacion: "Mediterráneo" },
+      { fecha: "Sábado 26", orador: "Luis Martínez", numero: 23, tema: "¿Es verdad esto que oí hablar?", congregacion: "Mediterráneo" }
+    ]
+  };
+
+  const contenedor = document.createElement("div");
+  contenedor.className = "contenedor-conferencias";
+
+  const editable = rolActual === "Administrador";
+
+  Object.keys(datosPorMes).forEach(mes => {
+    const titulo = document.createElement("h3");
+    titulo.className = "mes-titulo";
+    titulo.textContent = mes;
+    contenedor.appendChild(titulo);
+
+    const tabla = document.createElement("table");
+    tabla.className = "tabla-conferenciantes";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>Fecha</th>
+        <th>Orador</th>
+        <th>N°</th>
+        <th>Tema</th>
+        <th>Congregación</th>
+      </tr>
+    `;
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    datosPorMes[mes].forEach(dato => {
+      const fila = document.createElement("tr");
+
+      if (editable) {
+        fila.innerHTML = `
+          <td><input value="${dato.fecha}"></td>
+          <td><input value="${dato.orador}"></td>
+          <td><input type="number" value="${dato.numero}"></td>
+          <td><input value="${dato.tema}"></td>
+          <td><input value="${dato.congregacion}"></td>
+        `;
+      } else {
+        fila.innerHTML = `
+          <td>${dato.fecha}</td>
+          <td>${dato.orador}</td>
+          <td>${dato.numero}</td>
+          <td>${dato.tema}</td>
+          <td>${dato.congregacion}</td>
+        `;
+      }
+
+      tbody.appendChild(fila);
+    });
+
+    tabla.appendChild(tbody);
+    contenedor.appendChild(tabla);
+  });
+
+  contenido.appendChild(contenedor);
+
+  if (editable) {
+    const btnGuardar = document.createElement("button");
+    btnGuardar.className = "btn-guardar-conferencias";
+    btnGuardar.textContent = "💾 Guardar cambios";
+    btnGuardar.onclick = () => {
+      const nuevasTablas = contenido.querySelectorAll("table");
+      const nuevosDatos = {};
+
+      Object.keys(datosPorMes).forEach((mes, index) => {
+        const filas = nuevasTablas[index].querySelectorAll("tbody tr");
+        nuevosDatos[mes] = [];
+
+        filas.forEach(fila => {
+          const inputs = fila.querySelectorAll("input");
+          nuevosDatos[mes].push({
+            fecha: inputs[0].value,
+            orador: inputs[1].value,
+            numero: parseInt(inputs[2].value),
+            tema: inputs[3].value,
+            congregacion: inputs[4].value
+          });
+        });
+      });
+
+      localStorage.setItem("conferenciantesPorMes", JSON.stringify(nuevosDatos));
+      alert("✅ Cambios guardados correctamente.");
+    };
+
+    contenido.appendChild(btnGuardar);
+  }
+}
+  document.querySelectorAll('.menu-item.has-submenu').forEach(item => {
+    item.addEventListener('click', () => {
+      item.classList.toggle('active');
+    });
+  });
+
+function asignavida(editable = false) {
+  const esAdmin = localStorage.getItem("rol") === "admin";
+  const contenido = document.getElementById("contenido");
+
+  const datos = JSON.parse(localStorage.getItem("programaVidaMinisterio")) || {
+    oracionInicial: "Omar Ruiz",
+    presidente: "Daniel Riaño",
+    introduccion: "Daniel Riaño",
+    tesoro1: "Leonardo Cobo",
+    tesoro2: "Reynel Hernández",
+    lectura: "Brahiam Rodríguez",
+    maestro1: "Tatiana Moreno / Rocío Villamizar",
+    maestro2: "Diana Garay / Mery Martínez",
+    maestro3: "Adiela Arteaga / María Pinillos",
+    maestro4: "Lisseth Lozano / Keren Pacheco",
+    vida1: "Leonardo Cobo",
+    vida2: "Brahiam Rodríguez",
+    vida3: "Reynel Hernández",
+    oracionFinal: "Brahiam Rodríguez"
+  };
+
+  const titulos = JSON.parse(localStorage.getItem("titulosPrograma")) || {
+    semana: "5 – 11 de Mayo",
+    lecturaBiblica: "Proverbios 12",
+    cancionInicial: "🎵 Canción 101",
+    cancionIntermedia: "🎵 Canción 21",
+    cancionFinal: "🎵 Canción 57",
+    seccionTesoros: "TESOROS DE LA BIBLIA",
+    seccionMaestros: "SEAMOS MEJORES MAESTROS",
+    seccionVidaCristiana: "NUESTRA VIDA CRISTIANA"
+  };
+
+  function fila(titulo, clave) {
+    return `
+      <div class="fila">
+        <span>${titulo}</span>
+        <span class="nombre" data-clave="${clave}">
+          ${editable ? `<input type="text" value="${datos[clave] ?? ""}">` : datos[clave] ?? ""}
+        </span>
+      </div>
+    `;
+  }
+
+  function tituloEditable(texto, clave, clase = "") {
+    return editable
+      ? `<input type="text" class="editable-titulo ${clase}" data-clave="${clave}" value="${titulos[clave] ?? ""}">`
+      : `<span class="${clase}">${titulos[clave]}</span>`;
+  }
+
+  contenido.innerHTML = `
+    <div class="programa-reunion">
+      <h2 class="titulo">
+        ${editable && esAdmin ? "📝 Editando programa de la reunión de entre semana" : "📋 Programa para la reunión de entre semana"}
+      </h2>
+
+      <div class="encabezado">
+        <div><strong>Congregación:</strong> Los Cerros</div>
+        <div><strong>Semana:</strong> ${tituloEditable(titulos.semana, "semana")} | <em>${tituloEditable(titulos.lecturaBiblica, "lecturaBiblica")}</em></div>
+      </div>
+
+      <section class="seccion">
+        ${fila("Oración inicial", "oracionInicial")}
+        ${fila("Presidente", "presidente")}
+        <h3 class="titulo-seccion himno">${tituloEditable(titulos.cancionInicial, "cancionInicial")}</h3>
+        ${fila("Palabras de introducción (1 min.)", "introduccion")}
+      </section>
+
+      <section class="seccion">
+        <h3 class="titulo-seccion gris">${(titulos.seccionTesoros, "TESOROS DE LA BIBLIA")}</h3>
+        ${fila("1. El trabajo duro tiene su recompensa (10 mins.)", "tesoro1")}
+        ${fila("2. Busquemos perlas escondidas (10 mins.)", "tesoro2")}
+        ${fila("3. Lectura de la Biblia (4 mins.)", "lectura")}
+      </section>
+
+      <section class="seccion">
+        <h3 class="titulo-seccion dorado">${(titulos.seccionMaestros, "SEAMOS MEJORES MAESTROS")}</h3>
+        ${fila("4. Empiece conversaciones (2 mins.)", "maestro1")}
+        ${fila("5. Empiece conversaciones (3 mins.)", "maestro2")}
+        ${fila("6. Haga revistas (3 mins.)", "maestro3")}
+        ${fila("7. Explique sus creencias (5 mins.)", "maestro4")}
+      </section>
+
+      <section class="seccion">
+        <h3 class="titulo-seccion vino">${(titulos.seccionVidaCristiana, "NUESTRA VIDA CRISTIANA")}</h3>
+        <div class="fila"><span>${tituloEditable(titulos.cancionIntermedia, "cancionIntermedia")}</span><span></span></div>
+        ${fila("8. Afrontemos los problemas económicos con la ayuda de Jehová (15 mins.)", "vida1")}
+        ${fila("9. Estudio bíblico de la congregación (30 mins.)", "vida2")}
+        ${fila("10. Palabras de conclusión (3 mins.)", "vida3")}
+        <div class="fila"><span>${tituloEditable(titulos.cancionFinal, "cancionFinal")}</span><span></span></div>
+      </section>
+
+      <section class="seccion creditos">
+        ${fila("Oración final", "oracionFinal")}
+      </section>
+
+      ${esAdmin && !editable ? `<button class="btn-editar" id="editar">✏️ Editar</button>` : ""}
+      ${editable ? `<button class="btn-guardar" id="guardar">💾 Guardar cambios</button>` : ""}
+    </div>
+  `;
+
+  // Activar modo edición
+  if (esAdmin && !editable) {
+    document.getElementById("editar").addEventListener("click", () => asignavida(true));
+  }
+
+  // Guardar datos editados
+  if (editable) {
+    document.getElementById("guardar").addEventListener("click", () => {
+      // Guardar nombres
+      const inputs = contenido.querySelectorAll(".nombre input");
+      inputs.forEach(input => {
+        const clave = input.parentElement.getAttribute("data-clave");
+        datos[clave] = input.value.trim();
+      });
+      localStorage.setItem("programaVidaMinisterio", JSON.stringify(datos));
+
+      // Guardar títulos
+      const inputsTitulos = contenido.querySelectorAll(".editable-titulo");
+      inputsTitulos.forEach(input => {
+        const clave = input.getAttribute("data-clave");
+        titulos[clave] = input.value.trim();
+      });
+      localStorage.setItem("titulosPrograma", JSON.stringify(titulos));
+
+      alert("✅ Cambios guardados correctamente.");
+      asignavida(false);
+    });
+  }
+}
+
+function mostrarAseo() {
+  const contenido = document.getElementById("contenido");
+  contenido.innerHTML = `
+    <h2>🧹 Aseo del Salón</h2>
+    <p>Aquí puedes ver o asignar el aseo del salón.</p>
+    <!-- Aquí puedes agregar una tabla, formulario, calendario, etc. -->
+  `;
+}
+
+function mostrarAseo(editable = false) {
+  const contenido = document.getElementById("contenido");
+
+  // Verifica si ya existe una tabla guardada en localStorage
+  let tablaGuardada = localStorage.getItem("tablaAseo");
+
+  let cuerpoTabla = "";
+  if (tablaGuardada) {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = tablaGuardada;
+    cuerpoTabla = tempDiv.querySelector("tbody").innerHTML;
+  } else {
+    cuerpoTabla = `
+      <tr><td>MIÉRCOLES 2 DE ABRIL</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>SÁBADO 5 DE ABRIL</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>MIÉRCOLES 9 DE ABRIL</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>SÁBADO 12 DE ABRIL</td><td>CONMEMORACIÓN DE LA MUERTE DE CRISTO</td></tr>
+      <tr><td>MIÉRCOLES 16 DE ABRIL</td><td>ASAMBLEA DE CIRCUITO CON REPRESENTANTE DE LA SUCURSAL</td></tr>
+      <tr><td>SÁBADO 19 DE ABRIL</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>MIÉRCOLES 23 DE ABRIL</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>SÁBADO 26 DE ABRIL</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>MIÉRCOLES 30 DE ABRIL</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>SÁBADO 3 DE MAYO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>MIÉRCOLES 7 DE MAYO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>SÁBADO 10 DE MAYO</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>MIÉRCOLES 14 DE MAYO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>SÁBADO 17 DE MAYO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>MIÉRCOLES 21 DE MAYO</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>SÁBADO 24 DE MAYO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>MIÉRCOLES 28 DE MAYO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>SÁBADO 31 DE MAYO</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>MIÉRCOLES 4 DE JUNIO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>SÁBADO 7 DE JUNIO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>MIÉRCOLES 11 DE JUNIO</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>SÁBADO 14 DE JUNIO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>MIÉRCOLES 18 DE JUNIO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+      <tr><td>SÁBADO 21 DE JUNIO</td><td>AGUADITA (DAVID) / MANUELITA (REYNEL)</td></tr>
+      <tr><td>MIÉRCOLES 25 DE JUNIO</td><td>JORDÁN (MAURICIO) / SALINA (ANTONIO)</td></tr>
+      <tr><td>SÁBADO 28 DE JUNIO</td><td>NARANJOS (JESÚS) / HUNZA (DANIEL)</td></tr>
+    `;
+  }
+
+  const tablaHTML = `
+    <table class="tabla-profesional">
+      <thead>
+        <tr><th>FECHA</th><th>GRUPOS ENCARGADOS</th></tr>
+      </thead>
+      <tbody contenteditable="${editable}">
+        ${cuerpoTabla}
+      </tbody>
+    </table>
+  `;
+
+  contenido.innerHTML = `
+    <h2>🧹 Programa de Aseo del Salón del Reino 2025</h2>
+    ${tablaHTML}
+    ${editable ? `<button class="btn-guardar" onclick="guardarAseo()">💾 Guardar Cambios</button>` : ''}
+    <div id="mensaje-guardado" style="color: green; font-weight: bold; display: none; margin-top: 10px;">✅ Cambios guardados correctamente</div>
+  `;
+}
+
+
+function guardarAseo() {
+  const tabla = document.querySelector(".tabla-profesional").outerHTML;
+  localStorage.setItem("tablaAseo", tabla);
+
+  const mensaje = document.getElementById("mensaje-guardado");
+  mensaje.style.display = "block";
+  setTimeout(() => {
+    mensaje.style.display = "none";
+  }, 3000);
+}
+
+function ajustarSidebarParaMovil() {
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const topBar = document.getElementById('topBar');
+
+  function revisarAncho() {
+    if (window.innerWidth < 768) {
+      // En móvil: oculta sidebar y muestra solo botón toggle (tipo drawer)
+      sidebar.classList.add('collapsed');
+      topBar.classList.remove('hidden');
+      // Aquí podrías agregar una clase para ocultar completamente sidebar si quieres
+    } else {
+      // En escritorio: sidebar visible expandido, oculta topBar
+      sidebar.classList.remove('collapsed');
+      topBar.classList.add('hidden');
+    }
+  }
+
+  // Ejecutar al cargar
+  revisarAncho();
+
+  // Ejecutar cada vez que cambie el tamaño de ventana
+  window.addEventListener('resize', revisarAncho);
+
+  // Toggle para abrir/cerrar sidebar en móvil
+  toggleBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    if (sidebar.classList.contains('collapsed')) {
+      topBar.classList.remove('hidden');
+    } else {
+      topBar.classList.add('hidden');
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  ajustarSidebarParaMovil();
+});
+
+  </script>
+
+  <!-- Modal de Confirmación -->
+<div id="modalEliminacion" class="modal" style="display: none;">
+  <div class="modal-contenido">
+    <p>¿Estás seguro de que deseas eliminar esta asignación?</p>
+    <button onclick="confirmarEliminacion()" class="confirmar">Sí, eliminar</button>
+    <button onclick="cerrarModal()" class="cancelar">Cancelar</button>
+  </div>
+</div>
+
+<!-- Mensaje de Éxito -->
+<div id="mensajeExito" class="mensaje-exito" style="display: none;">✅ Asignación eliminada</div>
+
+<footer id="footer-principal" class="footer">
+  <p>&copy; 2025 Territorios Cerros de Suba. Todos los derechos reservados.</p>
+</footer>
+
+</body>
+
+
+</html></html> 
