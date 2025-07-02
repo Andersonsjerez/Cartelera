@@ -1,0 +1,12 @@
+# Archivo _config.yml para GitHub Pages
+
+# Configuración básica
+title: "Mi Proyecto"
+description: "Descripción de mi proyecto"
+url: "https://miusuario.github.io"  # URL base del sitio
+baseurl: ""  # Base URL, debe estar vacío si estás en la raíz
+
+# Configuración para GitHub Pages
+github_pages: true
+source: .
+destination: ./docs/_site
